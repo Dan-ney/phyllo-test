@@ -13,7 +13,7 @@ pipeline {
     stage('Build image') {
       steps {
         sh """
-        gcloud auth activate-service-account --key-file=/var/jenkins_home/gcloud-key.json
+        gcloud auth activate-service-account --key-file=/var/lib/jenkins/gcloud-key.json
         gcloud auth configure-docker ${REGION}-docker.pkg.dev -q
         docker build -t ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/${IMAGE}:${BUILD_NUMBER} .
         """
