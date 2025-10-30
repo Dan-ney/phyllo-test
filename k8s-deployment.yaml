@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: demo
-        image: us-central1-docker.pkg.dev/PROJECT_ID/demo-repo/demo-app:latest
+        image: us-central1-docker.pkg.dev/PROJECT_ID/phyllo-test/demo-app:latest
         imagePullPolicy: Always
         ports:
         - containerPort: 8080
