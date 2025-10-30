@@ -6,15 +6,15 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app: demo
+      app: demo-app
   template:
     metadata:
       labels:
-        app: demo
+        app: demo-app
     spec:
       containers:
       - name: demo
-        image: us-central1-docker.pkg.dev/PROJECT_ID/phyllo-test/demo-app:latest
+        image: us-central1-docker.pkg.dev/clear-booking-470907-q6/phyllo-test/demo-app:latest
         imagePullPolicy: Always
         ports:
         - containerPort: 8080
@@ -26,7 +26,7 @@ metadata:
 spec:
   type: LoadBalancer
   selector:
-    app: demo
+    app: demo-app
   ports:
   - port: 80
     targetPort: 8080
