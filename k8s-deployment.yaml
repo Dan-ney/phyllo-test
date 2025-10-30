@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: demo
-        image: us-central1-docker.pkg.dev/clear-booking-470907-q6/phyllo-test/demo-app:latest
+        image: IMAGE_PLACEHOLDER   
         imagePullPolicy: Always
         ports:
         - containerPort: 8080
