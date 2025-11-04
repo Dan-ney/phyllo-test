@@ -20,13 +20,13 @@ spec:
   - name: kaniko
     image: gcr.io/kaniko-project/executor:latest
     command:
-      - /busybox/sh
-      - -c
-      - cat
+      - /kaniko/executor
+      - --help
     tty: true
     volumeMounts:
       - name: gcp-key
         mountPath: /kaniko/.docker
+
   volumes:
   - name: gcp-key
     projected:
@@ -44,6 +44,7 @@ spec:
   }
 
   stages {
+
     stage('Authenticate to GCP') {
       steps {
         container('kubectl') {
@@ -68,7 +69,8 @@ spec:
               --context `pwd` \
               --dockerfile `pwd`/Dockerfile \
               --destination $DOCKER_REPO:$IMAGE_TAG \
-              --cleanup
+              --cleanup \
+              --single-snapshot
           '''
         }
       }
