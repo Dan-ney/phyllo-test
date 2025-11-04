@@ -41,21 +41,21 @@ pipeline {
     stage('Update Helm Values') {
       steps {
         sh '''
-          echo "📝 Updating Helm values.yaml with new image tag..."
-          sed -i "s|tag:.*|tag: \\"$IMAGE_TAG\\"|" helm/values.yaml
+          echo "📝 Updating Helm values.yaml with new image details..."
           sed -i "s|repository:.*|repository: $DOCKER_REPO|" helm/values.yaml
+          sed -i "s|tag:.*|tag: \\"$IMAGE_TAG\\"|" helm/values.yaml
 
           git config user.email "ci@enhub.ai"
           git config user.name "jenkins"
           git add helm/values.yaml
-          git commit -m "Update image tag to $IMAGE_TAG" || echo "No changes to commit"
+          git commit -m "Update image to $DOCKER_REPO:$IMAGE_TAG" || echo "No changes to commit"
         '''
       }
       post {
         success {
           withCredentials([string(credentialsId: 'git_token', variable: 'GIT_TOKEN')]) {
             sh '''
-              echo "🚀 Pushing changes to GitHub..."
+              echo "🚀 Pushing Helm update to GitHub..."
               git remote set-url origin https://$GIT_TOKEN@github.com/Dan-ney/phyllo-test.git
               git push origin main
             '''
