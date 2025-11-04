@@ -12,12 +12,16 @@ spec:
   - name: kubectl
     image: gcr.io/cloud-builders/kubectl
     command:
+      - /bin/sh
+      - -c
       - cat
     tty: true
 
   - name: kaniko
     image: gcr.io/kaniko-project/executor:latest
     command:
+      - /busybox/sh
+      - -c
       - cat
     tty: true
     volumeMounts:
