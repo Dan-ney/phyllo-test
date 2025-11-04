@@ -9,16 +9,26 @@ metadata:
     app: jenkins-agent
 spec:
   containers:
-  - name: jnlp
+  - name: kubectl
     image: gcr.io/cloud-builders/kubectl
     command:
-    - cat
+      - cat
     tty: true
-  - name: docker
-    image: gcr.io/cloud-builders/docker
+
+  - name: kaniko
+    image: gcr.io/kaniko-project/executor:latest
     command:
-    - cat
+      - cat
     tty: true
+    volumeMounts:
+      - name: gcp-key
+        mountPath: /kaniko/.docker
+  volumes:
+  - name: gcp-key
+    projected:
+      sources:
+      - secret:
+          name: gcp-sa
 """
     }
   }
@@ -32,11 +42,12 @@ spec:
   stages {
     stage('Authenticate to GCP') {
       steps {
-        container('docker') {
+        container('kubectl') {
           withCredentials([file(credentialsId: 'gcp-sa', variable: 'GCP_KEY')]) {
             sh '''
               echo "🔐 Authenticating to GCP..."
               gcloud auth activate-service-account --key-file=$GCP_KEY
+              gcloud config set project $PROJECT_ID
               gcloud auth configure-docker gcr.io --quiet
             '''
           }
@@ -44,23 +55,16 @@ spec:
       }
     }
 
-    stage('Build Docker Image') {
+    stage('Build & Push with Kaniko') {
       steps {
-        container('docker') {
+        container('kaniko') {
           sh '''
-            echo "🐳 Building Docker image..."
-            docker build -t $DOCKER_REPO:$IMAGE_TAG .
-          '''
-        }
-      }
-    }
-
-    stage('Push Docker Image') {
-      steps {
-        container('docker') {
-          sh '''
-            echo "📦 Pushing image to GCR..."
-            docker push $DOCKER_REPO:$IMAGE_TAG
+            echo "⚙️ Building and pushing image with Kaniko..."
+            /kaniko/executor \
+              --context `pwd` \
+              --dockerfile `pwd`/Dockerfile \
+              --destination $DOCKER_REPO:$IMAGE_TAG \
+              --cleanup
           '''
         }
       }
