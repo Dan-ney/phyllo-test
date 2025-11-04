@@ -2,52 +2,65 @@ pipeline {
   agent any
 
   environment {
-    PROJECT_ID = 'clear-booking-470907-q6'
-    REGION = 'us-central1'
-    REPO = 'phyllo-test'
-    IMAGE = 'demo-app'
-    CLUSTER = 'demo-cluster'
-    ZONE = 'us-central1-c'
+    PROJECT_ID = "upheld-pursuit-477207-s4"
+    DOCKER_REPO = "gcr.io/${PROJECT_ID}/phyllo-test"
+    IMAGE_TAG = "${env.BUILD_NUMBER}"
   }
 
   stages {
-    stage('Checkout') {
+    stage('Authenticate to GCP') {
       steps {
-        checkout scm
+        withCredentials([file(credentialsId: 'gcp-sa-key', variable: 'GCP_KEY')]) {
+          sh '''
+            echo "🔐 Authenticating to GCP..."
+            gcloud auth activate-service-account --key-file=$GCP_KEY
+            gcloud auth configure-docker gcr.io --quiet
+          '''
+        }
       }
     }
 
-    stage('Build image') {
+    stage('Build Docker Image') {
       steps {
-        sh """
-          gcloud auth activate-service-account --key-file=/var/lib/jenkins/gcloud-key.json
-          gcloud auth configure-docker ${REGION}-docker.pkg.dev -q
-          docker build -t ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/${IMAGE}:${BUILD_NUMBER} .
-        """
+        sh '''
+          echo "🐳 Building Docker image..."
+          docker build -t $DOCKER_REPO:$IMAGE_TAG .
+        '''
       }
     }
 
-    stage('Push image') {
+    stage('Push Docker Image') {
       steps {
-        sh """
-          docker push ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/${IMAGE}:${BUILD_NUMBER}
-        """
+        sh '''
+          echo "📦 Pushing image to GCR..."
+          docker push $DOCKER_REPO:$IMAGE_TAG
+        '''
       }
     }
 
-    stage('Deploy to GKE') {
+    stage('Update Helm Values') {
       steps {
-        sh """
-          gcloud container clusters get-credentials ${CLUSTER} --zone ${ZONE} --project ${PROJECT_ID}
-          # Replace image tag in YAML dynamically
-          sed -i "s|IMAGE_PLACEHOLDER|${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/${IMAGE}:${BUILD_NUMBER}|g" k8s-deployment.yaml
-          
-          # Apply Kubernetes manifests
-          kubectl apply -f k8s-deployment.yaml
-          
-          # Verify deployment rollout
-          kubectl rollout status deployment/demo-app
-        """
+        sh '''
+          echo "📝 Updating Helm values.yaml with new image tag..."
+          sed -i "s|tag:.*|tag: \\"$IMAGE_TAG\\"|" helm/values.yaml
+          sed -i "s|repository:.*|repository: $DOCKER_REPO|" helm/values.yaml
+
+          git config user.email "ci@enhub.ai"
+          git config user.name "jenkins"
+          git add helm/values.yaml
+          git commit -m "Update image tag to $IMAGE_TAG" || echo "No changes to commit"
+        '''
+      }
+      post {
+        success {
+          withCredentials([string(credentialsId: 'git_token', variable: 'GIT_TOKEN')]) {
+            sh '''
+              echo "🚀 Pushing changes to GitHub..."
+              git remote set-url origin https://$GIT_TOKEN@github.com/Dan-ney/phyllo-test.git
+              git push origin main
+            '''
+          }
+        }
       }
     }
   }
