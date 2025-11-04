@@ -10,7 +10,7 @@ pipeline {
   stages {
     stage('Authenticate to GCP') {
       steps {
-        withCredentials([file(credentialsId: 'gcp-sa-key', variable: 'GCP_KEY')]) {
+        withCredentials([file(credentialsId: 'gcp-sa', variable: 'GCP_KEY')]) {
           sh '''
             echo "🔐 Authenticating to GCP..."
             gcloud auth activate-service-account --key-file=$GCP_KEY
@@ -53,7 +53,7 @@ pipeline {
       }
       post {
         success {
-          withCredentials([string(credentialsId: 'git_token', variable: 'GIT_TOKEN')]) {
+          withCredentials([string(credentialsId: 'git-token', variable: 'GIT_TOKEN')]) {
             sh '''
               echo "🚀 Pushing Helm update to GitHub..."
               git remote set-url origin https://$GIT_TOKEN@github.com/Dan-ney/phyllo-test.git
