@@ -96,9 +96,7 @@ spec:
           withCredentials([string(credentialsId: 'github-token', variable: 'GIT_TOKEN')]) {
             sh '''
               echo "📝 Updating Helm values.yaml..."
-
-              cd phyllo-test/main
-
+              
               if [ ! -f helm/values.yaml ]; then
                 echo "❌ ERROR: helm/values.yaml not found!"
                 exit 1
