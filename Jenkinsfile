@@ -38,6 +38,7 @@ spec:
     IMAGE_NAME = "phyllo-test"
     DOCKER_REPO = "gcr.io/${PROJECT_ID}/${IMAGE_NAME}"
     IMAGE_TAG = "${env.BUILD_NUMBER}"
+    HELM_PATH = "phyllo-test/main/helm/values.yaml"
   }
 
   stages {
@@ -92,41 +93,51 @@ spec:
     stage('Update Helm values.yaml') {
       steps {
         container('kubectl') {
-          dir("${env.WORKSPACE}") {
-            sh '''
-              echo "📝 Updating Helm values.yaml..."
-              sed -i "s|repository:.*|repository: $DOCKER_REPO|" helm/values.yaml
-              sed -i "s|tag:.*|tag: \\"$IMAGE_TAG\\"|" helm/values.yaml
+          sh '''
+            echo "📝 Updating Helm values.yaml..."
+            cd phyllo-test/main
 
-              git config --global --add safe.directory $(pwd)
-              git config user.email "jenkins@enhub.ai"
-              git config user.name "Jenkins CI"
+            # Ensure Helm values file exists
+            if [ ! -f helm/values.yaml ]; then
+              echo "❌ ERROR: helm/values.yaml not found!"
+              exit 1
+            fi
 
-              git add helm/values.yaml
-              git commit -m "Update image to $DOCKER_REPO:$IMAGE_TAG" || echo "No changes to commit"
-            '''
-          }
+            # Update image repository & tag
+            sed -i "s|repository:.*|repository: ${DOCKER_REPO}|" helm/values.yaml
+            sed -i "s|tag:.*|tag: \\"${IMAGE_TAG}\\"|" helm/values.yaml
+
+            # Git setup
+            git config --global --add safe.directory $(pwd)
+            git config user.email "jenkins@enhub.ai"
+            git config user.name "Jenkins CI"
+
+            # Checkout main branch (avoid detached HEAD)
+            git fetch origin main
+            git checkout main || git checkout -b main
+            git pull origin main --rebase
+
+            # Commit changes
+            git add helm/values.yaml
+            git commit -m "Update image to ${DOCKER_REPO}:${IMAGE_TAG}" || echo "No changes to commit"
+          '''
         }
       }
 
       post {
         success {
           container('kubectl') {
-            dir("${env.WORKSPACE}") {
+            sh '''
+              echo "🚀 Pushing Helm update to GitHub..."
+              cd phyllo-test/main
+
               withCredentials([string(credentialsId: 'github-token', variable: 'GIT_TOKEN')]) {
-                sh '''
-                  echo "🚀 Pushing Helm update to GitHub..."
-                  git remote set-url origin https://$GIT_TOKEN@github.com/Dan-ney/phyllo-test.git
-
-                  # ✅ Fix detached HEAD issue
-                  git branch -M main
-                  git pull origin main --rebase || true
-                  git push origin main
-
-                  echo "✅ Helm values.yaml updated and pushed to GitHub."
-                '''
+                git remote set-url origin https://${GIT_TOKEN}@github.com/Dan-ney/phyllo-test.git
               }
-            }
+
+              git push origin main || echo "⚠️ Nothing new to push"
+              echo "✅ Helm values.yaml updated and pushed to GitHub."
+            '''
           }
         }
       }
