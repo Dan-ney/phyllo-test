@@ -42,10 +42,10 @@ spec:
 
   stages {
 
-    // ✅ Added this stage
-    stage('Checkout Repo') {
+    stage('Checkout Repository') {
       steps {
         container('kubectl') {
+          echo "📦 Checking out source code..."
           checkout scm
         }
       }
@@ -81,7 +81,7 @@ spec:
                 --cleanup \
                 --verbosity info
 
-              echo "✅ Image pushed: gcr.io/$PROJECT_ID/$IMAGE_NAME:$BUILD_NUMBER"
+              echo "✅ Image pushed successfully: gcr.io/$PROJECT_ID/$IMAGE_NAME:$BUILD_NUMBER"
             '''
           }
         }
@@ -91,27 +91,35 @@ spec:
     stage('Update Helm values.yaml') {
       steps {
         container('kubectl') {
-          sh '''
-            echo "📝 Updating Helm values.yaml..."
-            sed -i "s|repository:.*|repository: $DOCKER_REPO|" helm/values.yaml
-            sed -i "s|tag:.*|tag: \\"$IMAGE_TAG\\"|" helm/values.yaml
+          dir("${env.WORKSPACE}") {
+            sh '''
+              echo "📝 Updating Helm values.yaml..."
+              sed -i "s|repository:.*|repository: $DOCKER_REPO|" helm/values.yaml
+              sed -i "s|tag:.*|tag: \\"$IMAGE_TAG\\"|" helm/values.yaml
 
-            git config user.email "jenkins@enhub.ai"
-            git config user.name "Jenkins CI"
-            git add helm/values.yaml
-            git commit -m "Update image to $DOCKER_REPO:$IMAGE_TAG" || echo "No changes to commit"
-          '''
+              git config --global --add safe.directory $(pwd)
+              git config user.email "jenkins@enhub.ai"
+              git config user.name "Jenkins CI"
+
+              git add helm/values.yaml
+              git commit -m "Update image to $DOCKER_REPO:$IMAGE_TAG" || echo "No changes to commit"
+            '''
+          }
         }
       }
 
       post {
         success {
-          withCredentials([string(credentialsId: 'github-token', variable: 'GIT_TOKEN')]) {
-            sh '''
-              echo "🚀 Pushing Helm update to GitHub..."
-              git remote set-url origin https://$GIT_TOKEN@github.com/Dan-ney/phyllo-test.git
-              git push origin main
-            '''
+          container('kubectl') {
+            dir("${env.WORKSPACE}") {
+              withCredentials([string(credentialsId: 'github-token', variable: 'GIT_TOKEN')]) {
+                sh '''
+                  echo "🚀 Pushing Helm update to GitHub..."
+                  git remote set-url origin https://$GIT_TOKEN@github.com/Dan-ney/phyllo-test.git
+                  git push origin main
+                '''
+              }
+            }
           }
         }
       }
