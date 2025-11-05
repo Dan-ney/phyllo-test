@@ -95,7 +95,6 @@ spec:
         container('kubectl') {
           sh '''
             echo "📝 Updating Helm values.yaml..."
-            cd phyllo-test/main
 
             # Ensure Helm values file exists
             if [ ! -f helm/values.yaml ]; then
