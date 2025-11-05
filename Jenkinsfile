@@ -87,8 +87,8 @@ spec:
             sed -i "s|repository:.*|repository: $DOCKER_REPO|" helm/values.yaml
             sed -i "s|tag:.*|tag: \\"$IMAGE_TAG\\"|" helm/values.yaml
 
-            git config user.email "ci@enhub.ai"
-            git config user.name "jenkins"
+            git config user.email "jenkins@enhub.ai"
+            git config user.name "Jenkins CI"
             git add helm/values.yaml
             git commit -m "Update image to $DOCKER_REPO:$IMAGE_TAG" || echo "No changes to commit"
           '''
