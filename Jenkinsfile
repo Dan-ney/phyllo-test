@@ -12,16 +12,13 @@ spec:
   - name: kubectl
     image: gcr.io/cloud-builders/kubectl
     command:
-      - /bin/sh
-      - -c
       - cat
     tty: true
 
   - name: kaniko
     image: gcr.io/kaniko-project/executor:latest
     command:
-      - /kaniko/executor
-      - --help
+      - cat
     tty: true
     volumeMounts:
       - name: gcp-key
