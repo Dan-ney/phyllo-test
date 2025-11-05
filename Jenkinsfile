@@ -60,6 +60,7 @@ spec:
               gcloud auth activate-service-account --key-file=$GCP_KEY
               gcloud config set project $PROJECT_ID
               gcloud auth configure-docker gcr.io --quiet
+              echo "✅ Authentication successful."
             '''
           }
         }
@@ -79,7 +80,7 @@ spec:
                 --dockerfile $PWD/Dockerfile \
                 --destination gcr.io/$PROJECT_ID/$IMAGE_NAME:$BUILD_NUMBER \
                 --cleanup \
-                --verbosity info
+                --verbosity debug
 
               echo "✅ Image pushed successfully: gcr.io/$PROJECT_ID/$IMAGE_NAME:$BUILD_NUMBER"
             '''
@@ -116,7 +117,13 @@ spec:
                 sh '''
                   echo "🚀 Pushing Helm update to GitHub..."
                   git remote set-url origin https://$GIT_TOKEN@github.com/Dan-ney/phyllo-test.git
+
+                  # ✅ Fix detached HEAD issue
+                  git branch -M main
+                  git pull origin main --rebase || true
                   git push origin main
+
+                  echo "✅ Helm values.yaml updated and pushed to GitHub."
                 '''
               }
             }
