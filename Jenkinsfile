@@ -8,9 +8,10 @@ metadata:
   labels:
     app: jenkins-agent
 spec:
+  serviceAccountName: jenkins
   containers:
   - name: kubectl
-    image: gcr.io/cloud-builders/kubectl
+    image: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
     command:
       - cat
     tty: true
@@ -26,17 +27,16 @@ spec:
 
   volumes:
   - name: gcp-key
-    projected:
-      sources:
-      - secret:
-          name: gcp-sa
+    secret:
+      secretName: gcp-sa
 """
     }
   }
 
   environment {
     PROJECT_ID = "upheld-pursuit-477207-s4"
-    DOCKER_REPO = "gcr.io/${PROJECT_ID}/phyllo-test"
+    IMAGE_NAME = "phyllo-test"
+    DOCKER_REPO = "gcr.io/${PROJECT_ID}/${IMAGE_NAME}"
     IMAGE_TAG = "${env.BUILD_NUMBER}"
   }
 
@@ -57,32 +57,33 @@ spec:
       }
     }
 
-    stage('Build & Push with Kaniko') {
-      steps {   // ✅ ADDED THIS
+    stage('Build & Push Image with Kaniko') {
+      steps {
         container('kaniko') {
           withCredentials([file(credentialsId: 'gcp-sa', variable: 'GCP_KEY')]) {
             sh '''
               echo "⚙️ Building and pushing image with Kaniko..."
               export GOOGLE_APPLICATION_CREDENTIALS=$GCP_KEY
-              cat $GOOGLE_APPLICATION_CREDENTIALS | jq '.' > /dev/null || echo "✅ SA key detected"
+
               /kaniko/executor \
                 --context $PWD \
                 --dockerfile $PWD/Dockerfile \
-                --destination gcr.io/upheld-pursuit-477207-s4/phyllo-test:${BUILD_NUMBER} \
+                --destination gcr.io/$PROJECT_ID/$IMAGE_NAME:$BUILD_NUMBER \
                 --cleanup \
-                --single-snapshot \
                 --verbosity info
+
+              echo "✅ Image pushed: gcr.io/$PROJECT_ID/$IMAGE_NAME:$BUILD_NUMBER"
             '''
           }
         }
       }
     }
 
-    stage('Update Helm Values') {
+    stage('Update Helm values.yaml') {
       steps {
         container('kubectl') {
           sh '''
-            echo "📝 Updating Helm values.yaml with new image details..."
+            echo "📝 Updating Helm values.yaml..."
             sed -i "s|repository:.*|repository: $DOCKER_REPO|" helm/values.yaml
             sed -i "s|tag:.*|tag: \\"$IMAGE_TAG\\"|" helm/values.yaml
 
@@ -93,6 +94,7 @@ spec:
           '''
         }
       }
+
       post {
         success {
           withCredentials([string(credentialsId: 'github-token', variable: 'GIT_TOKEN')]) {
