@@ -58,20 +58,22 @@ spec:
     }
 
     stage('Build & Push with Kaniko') {
-      container('kaniko') {
-        withCredentials([file(credentialsId: 'gcp-sa', variable: 'GCP_KEY')]) {
-          sh '''
-            echo "⚙️ Building and pushing image with Kaniko..."
-            export GOOGLE_APPLICATION_CREDENTIALS=$GCP_KEY
-            cat $GOOGLE_APPLICATION_CREDENTIALS | jq '.' > /dev/null || echo "✅ SA key detected"
-            /kaniko/executor \
-              --context $PWD \
-              --dockerfile $PWD/Dockerfile \
-              --destination gcr.io/upheld-pursuit-477207-s4/phyllo-test:${BUILD_NUMBER} \
-              --cleanup \
-              --single-snapshot \
-              --verbosity info
-          '''
+      steps {   // ✅ ADDED THIS
+        container('kaniko') {
+          withCredentials([file(credentialsId: 'gcp-sa', variable: 'GCP_KEY')]) {
+            sh '''
+              echo "⚙️ Building and pushing image with Kaniko..."
+              export GOOGLE_APPLICATION_CREDENTIALS=$GCP_KEY
+              cat $GOOGLE_APPLICATION_CREDENTIALS | jq '.' > /dev/null || echo "✅ SA key detected"
+              /kaniko/executor \
+                --context $PWD \
+                --dockerfile $PWD/Dockerfile \
+                --destination gcr.io/upheld-pursuit-477207-s4/phyllo-test:${BUILD_NUMBER} \
+                --cleanup \
+                --single-snapshot \
+                --verbosity info
+            '''
+          }
         }
       }
     }
