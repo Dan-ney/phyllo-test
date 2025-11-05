@@ -1,8 +1,8 @@
 replicaCount: 1
 
 image:
-  repository: phyllo-repo/python-app
-  tag: "latest"
+  repository: gcr.io/upheld-pursuit-477207-s4/phyllo-test
+  tag: "22"
   pullPolicy: IfNotPresent
 
 service:
