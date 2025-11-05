@@ -81,7 +81,7 @@ spec:
                 --dockerfile $PWD/Dockerfile \
                 --destination gcr.io/$PROJECT_ID/$IMAGE_NAME:$BUILD_NUMBER \
                 --cleanup \
-                --verbosity debug
+                --verbosity info
 
               echo "✅ Image pushed successfully: gcr.io/$PROJECT_ID/$IMAGE_NAME:$BUILD_NUMBER"
             '''
@@ -93,48 +93,35 @@ spec:
     stage('Update Helm values.yaml') {
       steps {
         container('kubectl') {
-          sh '''
-            echo "📝 Updating Helm values.yaml..."
-
-            # Ensure Helm values file exists
-            if [ ! -f helm/values.yaml ]; then
-              echo "❌ ERROR: helm/values.yaml not found!"
-              exit 1
-            fi
-
-            # Update image repository & tag
-            sed -i "s|repository:.*|repository: ${DOCKER_REPO}|" helm/values.yaml
-            sed -i "s|tag:.*|tag: \\"${IMAGE_TAG}\\"|" helm/values.yaml
-
-            # Git setup
-            git config --global --add safe.directory $(pwd)
-            git config user.email "jenkins@enhub.ai"
-            git config user.name "Jenkins CI"
-
-            # Checkout main branch (avoid detached HEAD)
-            git fetch origin main
-            git checkout main || git checkout -b main
-            git pull origin main --rebase
-
-            # Commit changes
-            git add helm/values.yaml
-            git commit -m "Update image to ${DOCKER_REPO}:${IMAGE_TAG}" || echo "No changes to commit"
-          '''
-        }
-      }
-
-      post {
-        success {
-          container('kubectl') {
+          withCredentials([string(credentialsId: 'github-token', variable: 'GIT_TOKEN')]) {
             sh '''
-              echo "🚀 Pushing Helm update to GitHub..."
+              echo "📝 Updating Helm values.yaml..."
+
               cd phyllo-test/main
 
-              withCredentials([string(credentialsId: 'github-token', variable: 'GIT_TOKEN')]) {
-                git remote set-url origin https://${GIT_TOKEN}@github.com/Dan-ney/phyllo-test.git
-              }
+              if [ ! -f helm/values.yaml ]; then
+                echo "❌ ERROR: helm/values.yaml not found!"
+                exit 1
+              fi
 
+              sed -i "s|repository:.*|repository: ${DOCKER_REPO}|" helm/values.yaml
+              sed -i "s|tag:.*|tag: \\"${IMAGE_TAG}\\"|" helm/values.yaml
+
+              git config --global --add safe.directory $(pwd)
+              git config user.email "jenkins@enhub.ai"
+              git config user.name "Jenkins CI"
+
+              git fetch origin main
+              git checkout main || git checkout -b main
+              git pull origin main --rebase
+
+              git add helm/values.yaml
+              git commit -m "Update image to ${DOCKER_REPO}:${IMAGE_TAG}" || echo "⚠️ No changes to commit"
+
+              echo "🚀 Pushing changes to GitHub..."
+              git remote set-url origin https://${GIT_TOKEN}@github.com/Dan-ney/phyllo-test.git
               git push origin main || echo "⚠️ Nothing new to push"
+
               echo "✅ Helm values.yaml updated and pushed to GitHub."
             '''
           }
