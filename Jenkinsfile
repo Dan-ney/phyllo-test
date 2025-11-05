@@ -42,6 +42,15 @@ spec:
 
   stages {
 
+    // ✅ Added this stage
+    stage('Checkout Repo') {
+      steps {
+        container('kubectl') {
+          checkout scm
+        }
+      }
+    }
+
     stage('Authenticate to GCP') {
       steps {
         container('kubectl') {
