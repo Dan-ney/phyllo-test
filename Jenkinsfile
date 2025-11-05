@@ -12,14 +12,12 @@ spec:
   containers:
   - name: kubectl
     image: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
-    command:
-      - cat
+    command: ["cat"]
     tty: true
 
   - name: kaniko
     image: gcr.io/kaniko-project/executor:debug
-    command:
-      - cat
+    command: ["cat"]
     tty: true
     volumeMounts:
       - name: gcp-key
@@ -38,7 +36,6 @@ spec:
     IMAGE_NAME = "phyllo-test"
     DOCKER_REPO = "gcr.io/${PROJECT_ID}/${IMAGE_NAME}"
     IMAGE_TAG = "${env.BUILD_NUMBER}"
-    HELM_PATH = "phyllo-test/main/helm/values.yaml"
   }
 
   stages {
@@ -96,22 +93,24 @@ spec:
           withCredentials([string(credentialsId: 'github-token', variable: 'GIT_TOKEN')]) {
             sh '''
               echo "📝 Updating Helm values.yaml..."
-              
-              if [ ! -f helm/values.yaml ]; then
-                echo "❌ ERROR: helm/values.yaml not found!"
-                exit 1
-              fi
-
-              sed -i "s|repository:.*|repository: ${DOCKER_REPO}|" helm/values.yaml
-              sed -i "s|tag:.*|tag: \\"${IMAGE_TAG}\\"|" helm/values.yaml
 
               git config --global --add safe.directory $(pwd)
               git config user.email "jenkins@enhub.ai"
               git config user.name "Jenkins CI"
 
+              # Ensure we are on main and up to date before editing
               git fetch origin main
               git checkout main || git checkout -b main
-              git pull origin main --rebase
+              git pull origin main
+
+              if [ ! -f helm/values.yaml ]; then
+                echo "❌ ERROR: helm/values.yaml not found!"
+                exit 1
+              fi
+
+              # Modify Helm values
+              sed -i "s|repository:.*|repository: ${DOCKER_REPO}|" helm/values.yaml
+              sed -i "s|tag:.*|tag: \\"${IMAGE_TAG}\\"|" helm/values.yaml
 
               git add helm/values.yaml
               git commit -m "Update image to ${DOCKER_REPO}:${IMAGE_TAG}" || echo "⚠️ No changes to commit"
