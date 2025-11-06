@@ -1,4 +1,8 @@
 pipeline {
+  triggers {
+    githubPush()
+  }
+
   agent {
     kubernetes {
       yaml """
@@ -87,12 +91,12 @@ spec:
       }
     }
 
-    stage('Update Helm values.yaml') {
+    stage('Update Helm values.yaml (Dev & Prod)') {
       steps {
         container('kubectl') {
           withCredentials([string(credentialsId: 'github-token', variable: 'GIT_TOKEN')]) {
             sh '''
-              echo "📝 Updating Helm values.yaml..."
+              echo "📝 Updating Helm values.yaml in helm/ and helm-prod/..."
 
               git config --global --add safe.directory $(pwd)
               git config user.email "jenkins@enhub.ai"
@@ -103,23 +107,29 @@ spec:
               git checkout main || git checkout -b main
               git pull origin main
 
-              if [ ! -f helm/values.yaml ]; then
-                echo "❌ ERROR: helm/values.yaml not found!"
-                exit 1
-              fi
+              # Function to update values.yaml if it exists
+              update_values() {
+                local file_path=$1
+                if [ -f "$file_path" ]; then
+                  echo "🔧 Updating $file_path ..."
+                  sed -i "s|repository:.*|repository: ${DOCKER_REPO}|" "$file_path"
+                  sed -i "s|tag:.*|tag: \\"${IMAGE_TAG}\\"|" "$file_path"
+                else
+                  echo "⚠️ Skipping: $file_path not found."
+                fi
+              }
 
-              # Modify Helm values
-              sed -i "s|repository:.*|repository: ${DOCKER_REPO}|" helm/values.yaml
-              sed -i "s|tag:.*|tag: \\"${IMAGE_TAG}\\"|" helm/values.yaml
+              update_values helm/values.yaml
+              update_values helm-prod/values.yaml
 
-              git add helm/values.yaml
+              git add helm/values.yaml helm-prod/values.yaml
               git commit -m "Update image to ${DOCKER_REPO}:${IMAGE_TAG}" || echo "⚠️ No changes to commit"
 
               echo "🚀 Pushing changes to GitHub..."
               git remote set-url origin https://${GIT_TOKEN}@github.com/Dan-ney/phyllo-test.git
               git push origin main || echo "⚠️ Nothing new to push"
 
-              echo "✅ Helm values.yaml updated and pushed to GitHub."
+              echo "✅ Helm values.yaml updated and pushed successfully in both folders."
             '''
           }
         }
