@@ -1,0 +1,10 @@
+replicaCount: 2
+image:
+  repository: gcr.io/upheld-pursuit-477207-s4/phyllo-test
+  tag: "22"
+  pullPolicy: IfNotPresent
+
+service:
+  type: LoadBalancer
+  port: 80
+  targetPort: 8000
