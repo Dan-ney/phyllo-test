@@ -123,13 +123,13 @@ spec:
               update_values helm-prod/values.yaml
 
               git add helm/values.yaml helm-prod/values.yaml
-              git commit -m "Update image to ${DOCKER_REPO}:${IMAGE_TAG}" || echo "⚠️ No changes to commit"
+              git commit -m "Update image to ${DOCKER_REPO}:${IMAGE_TAG} [ci skip]" || echo "⚠️ No changes to commit"
 
               echo "🚀 Pushing changes to GitHub..."
               git remote set-url origin https://${GIT_TOKEN}@github.com/Dan-ney/phyllo-test.git
               git push origin main || echo "⚠️ Nothing new to push"
 
-              echo "✅ Helm values.yaml updated and pushed successfully in both folders."
+              echo "✅ Helm values.yaml updated and pushed successfully in both folders (with [ci skip])."
             '''
           }
         }
