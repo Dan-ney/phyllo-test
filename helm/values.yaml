@@ -2,7 +2,7 @@ replicaCount: 1
 
 image:
   repository: gcr.io/upheld-pursuit-477207-s4/phyllo-test
-  tag: "40"
+  tag: "41"
   pullPolicy: IfNotPresent
 
 service:
